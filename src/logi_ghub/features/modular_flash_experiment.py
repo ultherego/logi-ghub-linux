@@ -27,7 +27,7 @@ WRITE_TAG = 0x0120
 CONFIRM_TOKEN = 'WRITE FLASH'
 
 
-class ExperimentalWriteError(RuntimeError):
+class ExperimentalWriteError(ValueError):
     pass
 
 
