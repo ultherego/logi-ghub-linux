@@ -173,8 +173,26 @@ def _print_profile(dev: LogiDevice, p: ob.OnboardProfile, active: int) -> None:
 def cmd_onboard(args) -> None:
     dev = _device(args)
     sub = args.onboard_cmd
+    if sub == "modular-flash-audit":
+        from .features.modular_flash_audit import audit_hardware
+
+        result, after_path, audit_path = audit_hardware(dev, args.before)
+        print(f"Read-only post-write audit: {result['compared_tags']} complete known tags compared")
+        if result["changed_tags"]:
+            for item in result["changed_tags"]:
+                print(f"  CHANGED profile {item['profile']}: {item['tag']}")
+                if item['tag'] == "global_actuation":
+                    print(f"    {item['before_decoded']} -> {item['after_decoded']}")
+        else:
+            print("  No differences among comparable known tags")
+        print(f"  Unverified/unsupported tags: {len(result['unverified_tags'])} (not treated as equal)")
+        print(f"  Before active: {result['before_active']}, after active: {result['after_active']}")
+        print(f"  Private after-snapshot: {after_path}")
+        print(f"  Private audit: {audit_path}")
+        print("  NOTE: this is not proof that all flash/RGB data is unchanged")
+        return
     if sub == "modular-actuation-experiment":
-        from .features.modular_flash_experiment import preview, apply_experimental
+        from .features.modular_flash_experiment import preview
 
         plan = preview(dev, args.slot, args.mm)
         print(f"PRO X2 RAPID experimental flash write, profile {plan['slot']} (active)")
@@ -184,10 +202,12 @@ def cmd_onboard(args) -> None:
         if plan['unchanged']:
             print("Already identical; no flash write needed")
         elif not args.apply:
-            print("PREVIEW ONLY: no HID++ write was sent. --apply enables an interactive EXPERIMENT.")
+            print("PREVIEW ONLY: no HID++ write was sent. --apply is disabled pending protocol verification.")
         else:
-            result = apply_experimental(dev, plan)
-            print(f"Result: {result['status']} — disconnect/reconnect USB and independently re-read to verify persistence")
+            raise SystemExit(
+                "Flash write disabled after firmware rejected 0x8102 fn9 with HID++ 0x05 "
+                "(NOT_ALLOWED); complete a read-only audit and verify the protocol first"
+            )
         return
     if sub == "modular":
         from .features.modular_profiles import (
@@ -487,10 +507,12 @@ def main(argv: list[str] | None = None) -> int:
     q = osp.add_parser("modular", help="Read PRO X2 RAPID modular on-board profiles (no writes)")
     q.add_argument("--slot", type=int, choices=(1, 2, 3))
     q.add_argument("--out", help="write a private known-tag JSON export and redacted summary")
+    q = osp.add_parser("modular-flash-audit", help="Read-only compare against pre-write known-tag snapshot")
+    q.add_argument("--before", required=True, type=Path, help="prewrite-known-tags-*.json created before failed write")
     q = osp.add_parser("modular-actuation-experiment", help="UNVERIFIED single-tag flash write on active PRO X2 RAPID (preview by default)")
     q.add_argument("--slot", type=int, choices=(1, 2, 3), required=True)
     q.add_argument("--mm", required=True, help="new actuation in mm: 0.10–4.00, steps of 0.05")
-    q.add_argument("--apply", action="store_true", help="EXPERIMENT: interactive flash write; risk of configuration damage")
+    q.add_argument("--apply", action="store_true", help="DISABLED after HID++ NOT_ALLOWED; no flash writes permitted")
     q = osp.add_parser("backup")
     q.add_argument("--out")
     q = osp.add_parser("restore")
