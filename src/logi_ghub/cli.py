@@ -173,6 +173,22 @@ def _print_profile(dev: LogiDevice, p: ob.OnboardProfile, active: int) -> None:
 def cmd_onboard(args) -> None:
     dev = _device(args)
     sub = args.onboard_cmd
+    if sub == "modular-actuation-experiment":
+        from .features.modular_flash_experiment import preview, apply_experimental
+
+        plan = preview(dev, args.slot, args.mm)
+        print(f"PRO X2 RAPID experimental flash write, profile {plan['slot']} (active)")
+        print(f"  current: {plan['old_mm']:.2f} mm [{plan['old_raw_hex']}]")
+        print(f"  proposed: {plan['new_mm']:.2f} mm [{plan['new_raw_hex']}]")
+        print(f"  known-tag snapshot: {plan['snapshot_path']} (NOT restorable)")
+        if plan['unchanged']:
+            print("Already identical; no flash write needed")
+        elif not args.apply:
+            print("PREVIEW ONLY: no HID++ write was sent. --apply enables an interactive EXPERIMENT.")
+        else:
+            result = apply_experimental(dev, plan)
+            print(f"Result: {result['status']} — disconnect/reconnect USB and independently re-read to verify persistence")
+        return
     if sub == "modular":
         from .features.modular_profiles import (
             export_profiles, profile_overview, sanitized_summary, save_private_json,
@@ -471,6 +487,10 @@ def main(argv: list[str] | None = None) -> int:
     q = osp.add_parser("modular", help="Read PRO X2 RAPID modular on-board profiles (no writes)")
     q.add_argument("--slot", type=int, choices=(1, 2, 3))
     q.add_argument("--out", help="write a private known-tag JSON export and redacted summary")
+    q = osp.add_parser("modular-actuation-experiment", help="UNVERIFIED single-tag flash write on active PRO X2 RAPID (preview by default)")
+    q.add_argument("--slot", type=int, choices=(1, 2, 3), required=True)
+    q.add_argument("--mm", required=True, help="new actuation in mm: 0.10–4.00, steps of 0.05")
+    q.add_argument("--apply", action="store_true", help="EXPERIMENT: interactive flash write; risk of configuration damage")
     q = osp.add_parser("backup")
     q.add_argument("--out")
     q = osp.add_parser("restore")
