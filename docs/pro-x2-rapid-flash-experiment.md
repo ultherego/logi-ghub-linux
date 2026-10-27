@@ -43,7 +43,8 @@ reconnect the keyboard, then:
 
 ```bash
 cd ~/Pobrane/test/logi-ghub-linux-flash-experiment
-git pull --ff-only
+git fetch origin experiment/pro-x2-rapid-flash-actuation
+git switch --detach FETCH_HEAD  # worktree originally created in detached mode
 systemctl --user stop logi-ghubd
 .venv/bin/logi-ghub-cli -d 046d:c364 onboard modular-flash-audit \
   --before ~/.local/state/logi-ghub-linux/prewrite-known-tags-20261027T175332900490Z.json
