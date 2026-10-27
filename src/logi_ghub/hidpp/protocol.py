@@ -36,7 +36,7 @@ ERROR_NAMES = {
     0x02: "invalid argument",
     0x03: "out of range",
     0x04: "hardware error",
-    0x05: "logitech internal",
+    0x05: "not allowed",
     0x06: "invalid feature index",
     0x07: "invalid function",
     0x08: "busy",
